@@ -1,3 +1,4 @@
+import { processPdf } from "./ocr.js";
 import express from "express";
 import axios from "axios";
 
@@ -22,3 +23,15 @@ app.post("/fetch_legal_url", async (req, res) => {
 });
 
 app.listen(3000, () => console.log("Server running on port 3000"));
+app.post("/ocr_and_extract", async (req, res) => {
+  try {
+    const { base64_file, filename } = req.body;
+    if (!base64_file) return res.json({ status: "error", error: "base64_file needed" });
+
+    const result = await processPdf(base64_file, filename);
+    res.json({ status: "ok", ...result });
+
+  } catch (e) {
+    res.json({ status: "error", error: e.message });
+  }
+});
