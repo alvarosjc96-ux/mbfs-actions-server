@@ -41,29 +41,34 @@ export async function processPdf(base64, filename = "file.pdf") {
   const buffer = Buffer.from(base64, "base64");
   let text = "";
 
-  // Primero intentamos extraer texto directamente (PDF con capa de texto)
+  // Intentamos extraer texto directamente (PDF con capa de texto)
   try {
     const data = await pdfParse(buffer);
-    if (data.text.trim().length > 100) {
+    if (data && data.text && data.text.trim().length > 100) {
       text = data.text;
     }
   } catch (_) {}
 
-  // Si no hay texto -> OCR avanzado
+  // Si no hay texto suficiente -> OCR avanzado
   if (!text || text.trim().length < 50) {
     const prefix = crypto.randomBytes(6).toString("hex");
     const images = await pdfToPng(buffer, prefix);
 
     let ocrText = "";
     for (const img of images) {
-      ocrText += await ocrImage(img);
+      try {
+        ocrText += await ocrImage(img);
+      } catch (err) {
+        // si falla una página, seguimos con las otras
+        console.error("ocrImage error:", err && err.message);
+      }
     }
     text = ocrText;
   }
 
   return {
-    text_snippet: text.slice(0, 3000),
-    entities: extractEntities(text),
-    confidence: text.length > 500 ? 0.90 : 0.45
+    text_snippet: text ? text.slice(0, 3000) : "",
+    entities: extractEntities(text || ""),
+    confidence: text && text.length > 500 ? 0.90 : 0.45
   };
 }
